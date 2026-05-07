@@ -3,12 +3,13 @@ import { AsyncPipe, DecimalPipe, PercentPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { MarketSortField } from '../../core/data';
+import { PriceFlash } from '../../shared/price-flash/price-flash';
 import { Sparkline, Trend } from '../../shared/sparkline/sparkline';
 import { WatchlistState } from './watchlist-state';
 
 @Component({
   selector: 'app-watchlist',
-  imports: [AsyncPipe, DecimalPipe, PercentPipe, FormsModule, Sparkline],
+  imports: [AsyncPipe, DecimalPipe, PercentPipe, FormsModule, Sparkline, PriceFlash],
   providers: [WatchlistState],
   templateUrl: './watchlist.html',
   styleUrl: './watchlist.scss',

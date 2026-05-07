@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
   BehaviorSubject,
+  EMPTY,
   Observable,
   catchError,
   combineLatest,
@@ -17,6 +18,7 @@ import {
 
 import {
   CRYPTO_PROVIDER,
+  CryptoProviderRegistry,
   MarketSortField,
   MarketsQuery,
   SortDirection,
@@ -38,6 +40,7 @@ const HISTORY_RANGE: Range = '7d';
 @Injectable()
 export class WatchlistState {
   private readonly provider = inject(CRYPTO_PROVIDER);
+  private readonly registry = inject(CryptoProviderRegistry);
 
   private readonly searchSubject = new BehaviorSubject<string>('');
   private readonly vsCurrencySubject = new BehaviorSubject<string>('usd');
@@ -58,6 +61,14 @@ export class WatchlistState {
     .getSupportedVsCurrencies()
     .pipe(shareReplay({ bufferSize: 1, refCount: true }));
 
+  /**
+   * Fetch trigger. The active provider name is included as a third stream
+   * not because the query needs it, but to force the downstream switchMap
+   * chain to restart when the user picks a different provider — that way
+   * getMarkets and liveQuotes both run against the new provider with
+   * fresh, provider-specific coin ids (no stale ids leaking into the new
+   * source's URLs).
+   */
   private readonly fetchQuery$: Observable<MarketsQuery> = combineLatest([
     this.search$.pipe(
       debounceTime(200),
@@ -65,7 +76,15 @@ export class WatchlistState {
       distinctUntilChanged(),
     ),
     this.vsCurrency$.pipe(distinctUntilChanged()),
-  ]).pipe(map(([search, vsCurrency]) => ({ vsCurrency, search })));
+    this.registry.activeName$.pipe(distinctUntilChanged()),
+  ]).pipe(
+    map(([search, vsCurrency]) => ({
+      vsCurrency,
+      search,
+      pageSize: 25,
+      page: 1,
+    })),
+  );
 
   /**
    * One getMarkets fetch shared by both the live-quote and history pipelines.
@@ -94,6 +113,9 @@ export class WatchlistState {
       const ids = rows.map((r) => r.id);
       if (ids.length === 0) return of(rows);
       return this.provider.liveQuotes(ids, query.vsCurrency).pipe(
+        // Defensive: if a provider's live stream terminates with an error,
+        // fall back to the static rows so the UI keeps working.
+        catchError(() => EMPTY),
         scan((acc, q) => applyQuote(acc, q), rows),
         startWith(rows),
       );
@@ -101,24 +123,39 @@ export class WatchlistState {
   );
 
   /**
-   * Per-coin history map keyed by coin id. Refetched only when the query changes.
-   * Emits an empty map first so rows can render before sparklines are ready.
+   * Per-coin history map keyed by coin id. We only call getHistory for coins
+   * whose history was NOT already inlined by the provider in getMarkets — this
+   * keeps Mock's behavior (synthesized history per coin) and lets CoinGecko
+   * skip those calls entirely thanks to sparkline=true.
    */
   private readonly histories$: Observable<ReadonlyMap<string, readonly HistoricalPoint[]>> =
     this.initialFetch$.pipe(
       switchMap(({ rows, query }) => {
-        if (rows.length === 0) {
-          return of(new Map<string, readonly HistoricalPoint[]>());
+        const inlined = new Map<string, readonly HistoricalPoint[]>();
+        const needFetch: MarketRow[] = [];
+        for (const r of rows) {
+          if (r.history && r.history.length > 0) {
+            inlined.set(r.id, r.history);
+          } else {
+            needFetch.push(r);
+          }
         }
-        const requests = rows.map((r) =>
+        if (needFetch.length === 0) {
+          return of(inlined as ReadonlyMap<string, readonly HistoricalPoint[]>);
+        }
+        const requests = needFetch.map((r) =>
           this.provider.getHistory(r.id, query.vsCurrency, HISTORY_RANGE).pipe(
             map((points) => [r.id, points] as const),
             catchError(() => of([r.id, [] as readonly HistoricalPoint[]] as const)),
           ),
         );
         return combineLatest(requests).pipe(
-          map((pairs) => new Map(pairs)),
-          startWith(new Map<string, readonly HistoricalPoint[]>()),
+          map((pairs) => {
+            const merged = new Map(inlined);
+            for (const [id, pts] of pairs) merged.set(id, pts);
+            return merged as ReadonlyMap<string, readonly HistoricalPoint[]>;
+          }),
+          startWith(inlined as ReadonlyMap<string, readonly HistoricalPoint[]>),
         );
       }),
     );

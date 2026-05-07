@@ -1,6 +1,17 @@
 <div class="app-shell">
   <header class="app-header">
     <h1 class="app-header__title">Crypto Platform</h1>
+    <div class="app-header__providers">
+      <span class="app-header__providers-label">Source:</span>
+      @for (p of registry.available; track p.name) {
+        <button
+          type="button"
+          class="provider-btn"
+          [class.is-active]="(registry.activeName$ | async) === p.name"
+          (click)="onSelect(p.name)"
+        >{{ p.label }}</button>
+      }
+    </div>
   </header>
   <div class="app-body">
     <nav class="app-sidebar">

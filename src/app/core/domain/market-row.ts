@@ -1,4 +1,5 @@
 import { Coin } from './coin';
+import { HistoricalPoint } from './historical-point';
 import { Quote } from './quote';
 
 export interface MarketRow extends Coin {
@@ -8,6 +9,12 @@ export interface MarketRow extends Coin {
   readonly circulatingSupply?: number;
   readonly change24hPct?: number;
   readonly updatedAt: Date;
+  /**
+   * Optional inline price history. Providers that can return it cheaply
+   * as part of getMarkets (e.g. CoinGecko's sparkline=true) populate this
+   * field; consumers may use it directly instead of calling getHistory.
+   */
+  readonly history?: readonly HistoricalPoint[];
 }
 
 export function toMarketRow(coin: Coin, quote: Quote): MarketRow {

@@ -63,7 +63,9 @@
         <tr>
           <td>{{ row.name }}</td>
           <td class="muted">{{ row.symbol }}</td>
-          <td class="num">{{ row.price | number: priceDigits(row.price) }}</td>
+          <td class="num" [appPriceFlash]="row.price">
+            {{ row.price | number: priceDigits(row.price) }}
+          </td>
           <td
             class="num"
             [class.up]="(row.change24hPct ?? 0) > 0"

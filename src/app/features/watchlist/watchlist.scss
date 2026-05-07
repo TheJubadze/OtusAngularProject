@@ -116,5 +116,23 @@
       width: 130px;
       padding: 0.3rem 0.5rem;
     }
+
+    .flash-up {
+      animation: flashUp 700ms ease-out;
+    }
+
+    .flash-down {
+      animation: flashDown 700ms ease-out;
+    }
   }
+}
+
+@keyframes flashUp {
+  0%   { background: rgba(63, 185, 80, 0.45); }
+  100% { background: transparent; }
+}
+
+@keyframes flashDown {
+  0%   { background: rgba(248, 81, 73, 0.45); }
+  100% { background: transparent; }
 }
