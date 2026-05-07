@@ -17,6 +17,7 @@ import {
 } from 'rxjs';
 
 import {
+  Candle,
   Coin,
   CryptoError,
   HistoricalPoint,
@@ -128,6 +129,12 @@ export class CoinGeckoCryptoProvider implements CryptoDataProvider {
     vsCurrency: string,
     range: Range,
   ): Observable<HistoricalPoint[]> {
+    // CoinGecko free tier has no minute-level data — return an empty
+    // history so the chart starts blank and the live tick stream populates
+    // it within the first minute. (Use Binance for actual 1m candles.)
+    if (range === '1m') {
+      return of<HistoricalPoint[]>([]);
+    }
     const params = this.decorate(
       new HttpParams()
         .set('vs_currency', vsCurrency)
@@ -141,6 +148,43 @@ export class CoinGeckoCryptoProvider implements CryptoDataProvider {
       .pipe(
         map((dto) =>
           dto.prices.map(([timestamp, price]) => ({ timestamp, price })),
+        ),
+        catchError((err) => throwError(() => mapHttpError(err))),
+      );
+  }
+
+  getCandles(
+    coinId: string,
+    vsCurrency: string,
+    range: Range,
+  ): Observable<Candle[]> {
+    // CoinGecko's /ohlc endpoint snaps to its own granularity buckets
+    // (30-min candles for 1d, 4h candles for 7-30d, daily for 90d+).
+    // No native sub-day path, so '1m' returns empty and the live tick
+    // stream can populate it client-side if needed (we currently render
+    // an empty state in the UI).
+    if (range === '1m') {
+      return of<Candle[]>([]);
+    }
+    const params = this.decorate(
+      new HttpParams()
+        .set('vs_currency', vsCurrency)
+        .set('days', toDays(range)),
+    );
+    return this.http
+      .get<CoinGeckoOhlcDto>(
+        `${this.base}/coins/${encodeURIComponent(coinId)}/ohlc`,
+        { params },
+      )
+      .pipe(
+        map((arr) =>
+          arr.map<Candle>(([ts, open, high, low, close]) => ({
+            timestamp: ts,
+            open,
+            high,
+            low,
+            close,
+          })),
         ),
         catchError((err) => throwError(() => mapHttpError(err))),
       );
@@ -178,6 +222,18 @@ export class CoinGeckoCryptoProvider implements CryptoDataProvider {
         ),
         catchError((err) => throwError(() => mapHttpError(err))),
       );
+  }
+
+  liveCandles(
+    _coinId: string,
+    _vsCurrency: string,
+    _range: Range,
+  ): Observable<Candle> {
+    // CoinGecko has no native streaming. We could poll getCandles every
+    // 30s and emit the latest, but at sub-day granularity the data barely
+    // changes and the rate-limit cost isn't worth it. Consumers fall back
+    // to the static historical candles when this provider is active.
+    return EMPTY;
   }
 
   liveQuotes(
@@ -220,6 +276,7 @@ export class CoinGeckoCryptoProvider implements CryptoDataProvider {
         .set('vs_currencies', vs)
         .set('include_market_cap', 'true')
         .set('include_24hr_change', 'true')
+        .set('include_24hr_vol', 'true')
         .set('include_last_updated_at', 'true'),
     );
 
@@ -242,6 +299,7 @@ interface CoinGeckoMarketDto {
   current_price: number;
   market_cap: number | null;
   circulating_supply: number | null;
+  total_volume: number | null;
   price_change_percentage_24h: number | null;
   last_updated: string;
   sparkline_in_7d?: { price: number[] };
@@ -250,6 +308,14 @@ interface CoinGeckoMarketDto {
 interface CoinGeckoMarketChartDto {
   prices: Array<[number, number]>;
 }
+
+type CoinGeckoOhlcDto = Array<[
+  number, // timestamp
+  number, // open
+  number, // high
+  number, // low
+  number, // close
+]>;
 
 interface CoinGeckoSearchDto {
   coins: Array<{
@@ -276,6 +342,7 @@ function toMarketRow(dto: CoinGeckoMarketDto, vsCurrency: string): MarketRow {
     marketCap: dto.market_cap ?? undefined,
     circulatingSupply: dto.circulating_supply ?? undefined,
     change24hPct: dto.price_change_percentage_24h ?? undefined,
+    volume24h: dto.total_volume ?? undefined,
     updatedAt: new Date(dto.last_updated),
     history: sparklineToPoints(dto.sparkline_in_7d?.price),
   };
@@ -321,6 +388,7 @@ function simplePriceToQuotes(
       price,
       marketCap: fields[`${vsCurrency}_market_cap`],
       change24hPct: fields[`${vsCurrency}_24h_change`],
+      volume24h: fields[`${vsCurrency}_24h_vol`],
       updatedAt: fields['last_updated_at']
         ? new Date(fields['last_updated_at']! * 1000)
         : new Date(),
@@ -355,6 +423,13 @@ function filterBySearch(
 
 function toDays(range: Range): string {
   switch (range) {
+    // CoinGecko returns 5-min granularity for days <= 1, hourly for 2-90,
+    // daily for 90+. There is no native sub-day window, so '1h' falls back
+    // to the same /market_chart?days=1 call (~24h of 5-min data). The '1m'
+    // case is short-circuited in getHistory before reaching this switch;
+    // we keep it here for type exhaustiveness.
+    case '1m': return '1';
+    case '1h': return '1';
     case '1d': return '1';
     case '7d': return '7';
     case '30d': return '30';

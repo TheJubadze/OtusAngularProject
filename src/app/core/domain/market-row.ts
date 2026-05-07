@@ -8,6 +8,7 @@ export interface MarketRow extends Coin {
   readonly marketCap?: number;
   readonly circulatingSupply?: number;
   readonly change24hPct?: number;
+  readonly volume24h?: number;
   readonly updatedAt: Date;
   /**
    * Optional inline price history. Providers that can return it cheaply
@@ -25,6 +26,7 @@ export function toMarketRow(coin: Coin, quote: Quote): MarketRow {
     marketCap: quote.marketCap,
     circulatingSupply: quote.circulatingSupply,
     change24hPct: quote.change24hPct,
+    volume24h: quote.volume24h,
     updatedAt: quote.updatedAt,
   };
 }

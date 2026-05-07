@@ -82,6 +82,10 @@
       background: #11161d;
     }
 
+    tbody tr.is-clickable {
+      cursor: pointer;
+    }
+
     .is-sortable {
       cursor: pointer;
       user-select: none;

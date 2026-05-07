@@ -5,5 +5,6 @@ export interface Quote {
   readonly marketCap?: number;
   readonly circulatingSupply?: number;
   readonly change24hPct?: number;
+  readonly volume24h?: number;
   readonly updatedAt: Date;
 }

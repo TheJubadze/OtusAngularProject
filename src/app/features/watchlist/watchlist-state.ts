@@ -173,6 +173,24 @@ export class WatchlistState {
       }));
       return sortRows(enriched, by, dir);
     }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  /**
+   * Currently selected row id (null when nothing is open). The selected row
+   * is derived by joining this with rows$ so that live price updates flow
+   * straight into the detail panel — no separate subscription needed.
+   */
+  private readonly selectedIdSubject = new BehaviorSubject<string | null>(null);
+  readonly selectedId$ = this.selectedIdSubject.asObservable();
+
+  readonly selectedRow$: Observable<WatchlistRow | null> = combineLatest([
+    this.rows$,
+    this.selectedId$,
+  ]).pipe(
+    map(([rows, id]) =>
+      id == null ? null : (rows.find((r) => r.id === id) ?? null),
+    ),
   );
 
   setSearch(value: string): void {
@@ -181,6 +199,10 @@ export class WatchlistState {
 
   setVsCurrency(value: string): void {
     this.vsCurrencySubject.next(value.toLowerCase());
+  }
+
+  select(id: string | null): void {
+    if (this.selectedIdSubject.value !== id) this.selectedIdSubject.next(id);
   }
 
   toggleSort(field: MarketSortField): void {
@@ -203,9 +225,10 @@ function applyQuote(rows: readonly MarketRow[], quote: Quote): MarketRow[] {
     return {
       ...row,
       price: quote.price,
-      marketCap: quote.marketCap,
+      marketCap: quote.marketCap ?? row.marketCap,
       circulatingSupply: quote.circulatingSupply ?? row.circulatingSupply,
       change24hPct: quote.change24hPct,
+      volume24h: quote.volume24h ?? row.volume24h,
       updatedAt: quote.updatedAt,
     };
   });

@@ -1,7 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, defer } from 'rxjs';
 
-import { Coin, HistoricalPoint, MarketRow, Quote, Range } from '../../domain';
+import {
+  Candle,
+  Coin,
+  HistoricalPoint,
+  MarketRow,
+  Quote,
+  Range,
+} from '../../domain';
 import { CryptoDataProvider } from '../crypto-data-provider';
 import { MarketsQuery } from '../markets-query';
 import { CryptoProviderRegistry } from '../provider-registry';
@@ -34,6 +41,26 @@ export class RoutingCryptoProvider implements CryptoDataProvider {
   ): Observable<HistoricalPoint[]> {
     return defer(() =>
       this.registry.active.getHistory(coinId, vsCurrency, range),
+    );
+  }
+
+  getCandles(
+    coinId: string,
+    vsCurrency: string,
+    range: Range,
+  ): Observable<Candle[]> {
+    return defer(() =>
+      this.registry.active.getCandles(coinId, vsCurrency, range),
+    );
+  }
+
+  liveCandles(
+    coinId: string,
+    vsCurrency: string,
+    range: Range,
+  ): Observable<Candle> {
+    return defer(() =>
+      this.registry.active.liveCandles(coinId, vsCurrency, range),
     );
   }
 

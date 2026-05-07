@@ -1,18 +1,23 @@
 import { Injectable } from '@angular/core';
 import {
+  EMPTY,
   Observable,
   concat,
   defer,
   delay,
+  filter,
   from,
+  interval,
   map,
   of,
+  scan,
   switchMap,
   throwError,
   timer,
 } from 'rxjs';
 
 import {
+  Candle,
   Coin,
   CryptoError,
   HistoricalPoint,
@@ -118,6 +123,26 @@ export class MockCryptoProvider implements CryptoDataProvider {
     }).pipe(delay(200));
   }
 
+  getCandles(
+    coinId: string,
+    vsCurrency: string,
+    range: Range,
+  ): Observable<Candle[]> {
+    return defer(() => {
+      const seed = SEEDS.find((c) => c.id === coinId);
+      if (!seed) {
+        return throwError(() => new CryptoError('not-found', `Coin ${coinId} not found`));
+      }
+      const vs = vsCurrency.toLowerCase();
+      if (!(vs in FX_VS_USD)) {
+        return throwError(
+          () => new CryptoError('unsupported', `Currency ${vs} is not supported`),
+        );
+      }
+      return of(buildCandles(seed, vs, range));
+    }).pipe(delay(200));
+  }
+
   searchCoins(query: string): Observable<Coin[]> {
     const q = query.trim().toLowerCase();
     const matches = q
@@ -143,6 +168,50 @@ export class MockCryptoProvider implements CryptoDataProvider {
     );
   }
 
+  liveCandles(
+    coinId: string,
+    vsCurrency: string,
+    range: Range,
+  ): Observable<Candle> {
+    const seed = SEEDS.find((s) => s.id === coinId);
+    const vs = vsCurrency.toLowerCase();
+    if (!seed || !(vs in FX_VS_USD)) return EMPTY;
+    const fx = FX_VS_USD[vs];
+    const bucketMs = rangeMs(range) / pointCount(range);
+
+    // Tick faster than the bucket size (but not absurdly so) so the
+    // current candle visibly evolves between bucket boundaries.
+    const tickMs = Math.max(200, Math.min(1000, Math.floor(bucketMs / 4)));
+
+    return interval(tickMs).pipe(
+      scan<number, Candle | null>((acc, _) => {
+        const now = Date.now();
+        const bucketStart = Math.floor(now / bucketMs) * bucketMs;
+        if (!acc || acc.timestamp !== bucketStart) {
+          const opening = acc?.close ?? seed.basePriceUsd * fx;
+          return {
+            timestamp: bucketStart,
+            open: opening,
+            high: opening,
+            low: opening,
+            close: opening,
+            volume: 0,
+          };
+        }
+        const drift = (Math.random() - 0.5) * 2 * seed.volatility * 0.3;
+        const newPrice = acc.close * (1 + drift);
+        return {
+          ...acc,
+          high: Math.max(acc.high, newPrice),
+          low: Math.min(acc.low, newPrice),
+          close: newPrice,
+          volume: (acc.volume ?? 0) + Math.random() * 1000,
+        };
+      }, null),
+      filter((c): c is Candle => c !== null),
+    );
+  }
+
   getSupportedVsCurrencies(): Observable<readonly string[]> {
     return of(SUPPORTED).pipe(delay(50));
   }
@@ -157,6 +226,8 @@ function buildQuote(seed: MockCoinSeed, vsCurrency: string): Quote {
   const jitter = (Math.random() - 0.5) * 2 * seed.volatility;
   const priceUsd = seed.basePriceUsd * (1 + jitter);
   const marketCapUsd = priceUsd * seed.circulatingSupply;
+  // Synthesize 24h volume as ~3-7% of market cap (typical real-world ratio).
+  const volumeUsd = marketCapUsd * (0.03 + Math.random() * 0.04);
   return {
     coinId: seed.id,
     vsCurrency,
@@ -164,8 +235,39 @@ function buildQuote(seed: MockCoinSeed, vsCurrency: string): Quote {
     marketCap: marketCapUsd * fx,
     circulatingSupply: seed.circulatingSupply,
     change24hPct: jitter * 100,
+    volume24h: volumeUsd * fx,
     updatedAt: new Date(),
   };
+}
+
+function buildCandles(
+  seed: MockCoinSeed,
+  vsCurrency: string,
+  range: Range,
+): Candle[] {
+  const fx = FX_VS_USD[vsCurrency];
+  const points = pointCount(range);
+  const stepMs = rangeMs(range) / points;
+  const now = Date.now();
+  const out: Candle[] = [];
+  let close = seed.basePriceUsd;
+  for (let i = points - 1; i >= 0; i--) {
+    const open = close;
+    const drift = (Math.random() - 0.5) * 2 * seed.volatility;
+    close = open * (1 + drift);
+    const wick = Math.random() * seed.volatility * 0.5;
+    const high = Math.max(open, close) * (1 + wick);
+    const low = Math.min(open, close) * (1 - wick);
+    out.push({
+      timestamp: now - i * stepMs,
+      open: open * fx,
+      high: high * fx,
+      low: low * fx,
+      close: close * fx,
+      volume: Math.round(Math.random() * 1_000_000),
+    });
+  }
+  return out;
 }
 
 function buildHistory(
@@ -187,25 +289,40 @@ function buildHistory(
   return out;
 }
 
+/**
+ * Total points generated, including ~100 candles of lookback for MA(99)
+ * computation. The chart only shows the trailing visible window.
+ */
 function pointCount(range: Range): number {
   switch (range) {
-    case '1d': return 24;
-    case '7d': return 24 * 7;
-    case '30d': return 30;
-    case '90d': return 90;
-    case '1y': return 52;
-    case 'max': return 100;
+    case '1m': return 160;
+    case '1h': return 160;
+    case '1d': return 124;
+    case '7d': return 268;
+    case '30d': return 130;
+    case '90d': return 190;
+    case '1y': return 152;
+    case 'max': return 200;
   }
 }
 
+/**
+ * Total time span covered by the synthesized series. Pads the visible
+ * range so the lookback section is also covered with realistic timestamps.
+ */
 function rangeMs(range: Range): number {
-  const day = 24 * 60 * 60 * 1000;
+  const second = 1000;
+  const minute = 60 * second;
+  const day = 24 * 60 * minute;
   switch (range) {
-    case '1d': return day;
-    case '7d': return 7 * day;
-    case '30d': return 30 * day;
-    case '90d': return 90 * day;
-    case '1y': return 365 * day;
+    // Total span = visible_range * (totalCount / visibleCount)
+    case '1m': return 160 * second;       // 60s visible window, 100s lookback
+    case '1h': return 160 * minute;
+    case '1d': return Math.round((124 / 24) * day);
+    case '7d': return Math.round((268 / 168) * 7 * day);
+    case '30d': return Math.round((130 / 30) * 30 * day);
+    case '90d': return Math.round((190 / 90) * 90 * day);
+    case '1y': return Math.round((152 / 52) * 365 * day);
     case 'max': return 5 * 365 * day;
   }
 }

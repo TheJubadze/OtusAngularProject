@@ -8,14 +8,16 @@ import {
   EMPTY,
   Observable,
   catchError,
+  defer,
   map,
   of,
   retry,
   throwError,
 } from 'rxjs';
-import { webSocket } from 'rxjs/webSocket';
+import { WebSocketSubject, webSocket } from 'rxjs/webSocket';
 
 import {
+  Candle,
   Coin,
   CryptoError,
   HistoricalPoint,
@@ -27,8 +29,8 @@ import { CryptoDataProvider } from '../crypto-data-provider';
 import { MarketsQuery } from '../markets-query';
 
 /**
- * Binance Spot adapter. Uses public REST for static lookups and a public
- * WebSocket stream for real-time quotes — no auth required.
+ * Binance Spot adapter. Uses public REST for static lookups and a single
+ * shared public WebSocket connection for ALL real-time streams.
  *
  * Caveats vs. CoinGecko:
  * - No marketCap or circulatingSupply (Binance is an exchange, not an
@@ -38,14 +40,34 @@ import { MarketsQuery } from '../markets-query';
  * - Pairs are quote-currency-prefixed: 'usd' maps to 'USDT' (most liquid),
  *   'eur' to 'EUR', 'btc' to 'BTC'. RUB/etc. are not supported.
  *
- * The win: liveQuotes ticks at sub-second cadence over WebSocket, no
- * polling, no rate-limit dance.
+ * Streaming model: instead of opening a new WebSocket per stream (and
+ * leaking connections every time the user changes range), we keep a
+ * single WebSocketSubject and use `multiplex` to add/remove individual
+ * streams via SUBSCRIBE / UNSUBSCRIBE control messages. This is how
+ * professional trading terminals do it.
  */
 @Injectable({ providedIn: 'root' })
 export class BinanceCryptoProvider implements CryptoDataProvider {
   private readonly http = inject(HttpClient);
   private readonly base = 'https://api.binance.com/api/v3';
   private readonly wsBase = 'wss://stream.binance.com:9443/stream';
+
+  /** Single shared WebSocket. Lazily opened on the first multiplex
+   *  subscription and torn down by the subject when the last consumer
+   *  unsubscribes; the closeObserver clears the reference so the next
+   *  subscriber rebuilds it. */
+  private socket?: WebSocketSubject<unknown>;
+  private nextMessageId = 1;
+
+  private getSocket(): WebSocketSubject<unknown> {
+    if (!this.socket) {
+      this.socket = webSocket<unknown>({
+        url: this.wsBase,
+        closeObserver: { next: () => { this.socket = undefined; } },
+      });
+    }
+    return this.socket;
+  }
 
   getMarkets(query: MarketsQuery): Observable<MarketRow[]> {
     const quote = mapVsCurrency(query.vsCurrency);
@@ -136,6 +158,39 @@ export class BinanceCryptoProvider implements CryptoDataProvider {
       );
   }
 
+  getCandles(
+    coinId: string,
+    vsCurrency: string,
+    range: Range,
+  ): Observable<Candle[]> {
+    const quote = mapVsCurrency(vsCurrency);
+    if (!quote) {
+      return throwError(
+        () => new CryptoError('unsupported', `${vsCurrency} not supported`),
+      );
+    }
+    const { interval, limit } = rangeToKlineParams(range);
+    const params = new HttpParams()
+      .set('symbol', `${coinId.toUpperCase()}${quote}`)
+      .set('interval', interval)
+      .set('limit', String(limit));
+    return this.http
+      .get<BinanceKline[]>(`${this.base}/klines`, { params })
+      .pipe(
+        map((klines) =>
+          klines.map<Candle>((k) => ({
+            timestamp: k[0],
+            open: Number.parseFloat(k[1]),
+            high: Number.parseFloat(k[2]),
+            low: Number.parseFloat(k[3]),
+            close: Number.parseFloat(k[4]),
+            volume: Number.parseFloat(k[5]),
+          })),
+        ),
+        catchError((err) => throwError(() => mapHttpError(err))),
+      );
+  }
+
   searchCoins(query: string): Observable<Coin[]> {
     const q = query.trim().toLowerCase();
     return this.http
@@ -182,16 +237,51 @@ export class BinanceCryptoProvider implements CryptoDataProvider {
     const quote = mapVsCurrency(vsCurrency);
     if (!quote) return EMPTY;
 
-    const symbols = coinIds.map((id) => `${id.toLowerCase()}${quote.toLowerCase()}`);
-    const streams = symbols.map((s) => `${s}@miniTicker`).join('/');
-    const url = `${this.wsBase}?streams=${streams}`;
+    const symbols = coinIds.map(
+      (id) => `${id.toLowerCase()}${quote.toLowerCase()}`,
+    );
+    const streams = symbols.map((s) => `${s}@miniTicker`);
+    const streamSet = new Set(streams);
+    const subId = this.nextMessageId++;
+    const unsubId = this.nextMessageId++;
     const vs = vsCurrency.toLowerCase();
 
-    return webSocket<BinanceStreamMessage>(url).pipe(
-      // retry the underlying connection if it drops; switchMap upstream
-      // unsubscribes us anyway when the consumer changes provider.
+    return defer(() =>
+      this.getSocket().multiplex(
+        () => ({ method: 'SUBSCRIBE', params: streams, id: subId }),
+        () => ({ method: 'UNSUBSCRIBE', params: streams, id: unsubId }),
+        (msg) => streamSet.has(streamOf(msg)),
+      ),
+    ).pipe(
       retry({ delay: 5000 }),
-      map((msg) => streamToQuote(msg.data, quote, vs)),
+      map((msg) => streamToQuote((msg as BinanceStreamMessage).data, quote, vs)),
+    );
+  }
+
+  liveCandles(
+    coinId: string,
+    vsCurrency: string,
+    range: Range,
+  ): Observable<Candle> {
+    const quote = mapVsCurrency(vsCurrency);
+    if (!quote) return EMPTY;
+    const interval = rangeToBinanceInterval(range);
+    const symbol = `${coinId.toLowerCase()}${quote.toLowerCase()}`;
+    const stream = `${symbol}@kline_${interval}`;
+    const subId = this.nextMessageId++;
+    const unsubId = this.nextMessageId++;
+
+    return defer(() =>
+      this.getSocket().multiplex(
+        () => ({ method: 'SUBSCRIBE', params: [stream], id: subId }),
+        () => ({ method: 'UNSUBSCRIBE', params: [stream], id: unsubId }),
+        (msg) => streamOf(msg) === stream,
+      ),
+    ).pipe(
+      retry({ delay: 5000 }),
+      map((msg) =>
+        klineEventToCandle((msg as BinanceKlineStreamMessage).data.k),
+      ),
     );
   }
 
@@ -205,6 +295,7 @@ interface BinanceTicker24hDto {
   lastPrice: string;
   priceChangePercent: string;
   quoteVolume: string;
+  volume: string;
   openPrice: string;
   closeTime: number;
 }
@@ -239,6 +330,29 @@ interface BinanceMiniTicker {
 interface BinanceStreamMessage {
   stream: string;
   data: BinanceMiniTicker;
+}
+
+interface BinanceKlineEvent {
+  e: 'kline';
+  E: number;
+  s: string;
+  k: {
+    t: number; // kline open time
+    T: number; // kline close time
+    i: string; // interval
+    o: string; // open
+    h: string; // high
+    l: string; // low
+    c: string; // close
+    v: string; // volume
+    x: boolean; // is closed
+    q: string; // quote volume
+  };
+}
+
+interface BinanceKlineStreamMessage {
+  stream: string;
+  data: BinanceKlineEvent;
 }
 
 const COIN_NAMES: Record<string, string> = {
@@ -326,6 +440,7 @@ function tickerToMarketRow(
     vsCurrency,
     price: Number.parseFloat(dto.lastPrice),
     change24hPct: Number.parseFloat(dto.priceChangePercent),
+    volume24h: Number.parseFloat(dto.quoteVolume),
     updatedAt: new Date(dto.closeTime),
   };
 }
@@ -340,6 +455,7 @@ function tickerToQuote(
     vsCurrency,
     price: Number.parseFloat(dto.lastPrice),
     change24hPct: Number.parseFloat(dto.priceChangePercent),
+    volume24h: Number.parseFloat(dto.quoteVolume),
     updatedAt: new Date(dto.closeTime),
   };
 }
@@ -358,6 +474,7 @@ function streamToQuote(
     vsCurrency,
     price: close,
     change24hPct,
+    volume24h: Number.parseFloat(msg.q),
     updatedAt: new Date(msg.E),
   };
 }
@@ -366,14 +483,62 @@ function rangeToKlineParams(range: Range): {
   interval: string;
   limit: number;
 } {
+  return { interval: rangeToBinanceInterval(range), limit: rangeKlineLimit(range) };
+}
+
+function rangeToBinanceInterval(range: Range): string {
   switch (range) {
-    case '1d': return { interval: '1h', limit: 24 };
-    case '7d': return { interval: '1h', limit: 168 };
-    case '30d': return { interval: '4h', limit: 180 };
-    case '90d': return { interval: '1d', limit: 90 };
-    case '1y': return { interval: '1d', limit: 365 };
-    case 'max': return { interval: '1w', limit: 1000 };
+    case '1m': return '1s';
+    case '1h': return '1m';
+    case '1d': return '15m';
+    case '7d': return '1h';
+    case '30d': return '4h';
+    case '90d': return '1d';
+    case '1y': return '1d';
+    case 'max': return '1w';
   }
+}
+
+/**
+ * Each visible-window count is padded by ~MA(99) lookback so all three
+ * moving averages can be computed in full and rendered from the leftmost
+ * candle of the displayed area (the chart clips the leading lookback
+ * portion via x-axis min).
+ */
+function rangeKlineLimit(range: Range): number {
+  switch (range) {
+    case '1m': return 160;   // 60 visible + 100 lookback
+    case '1h': return 160;
+    case '1d': return 196;   // 96 + 100
+    case '7d': return 268;   // 168 + 100
+    case '30d': return 280;  // 180 + 100
+    case '90d': return 190;  // 90 + 100
+    case '1y': return 465;   // 365 + 100
+    case 'max': return 1000; // hits Binance's per-call cap
+  }
+}
+
+/**
+ * Safely extract the stream name from an incoming message. Combined-stream
+ * data messages have shape `{ stream: '...', data: {...} }`; control-message
+ * acks (e.g. `{ result: null, id: 1 }`) have neither and are filtered out
+ * by everyone.
+ */
+function streamOf(msg: unknown): string {
+  if (typeof msg !== 'object' || msg === null) return '';
+  const stream = (msg as { stream?: unknown }).stream;
+  return typeof stream === 'string' ? stream : '';
+}
+
+function klineEventToCandle(k: BinanceKlineEvent['k']): Candle {
+  return {
+    timestamp: k.t,
+    open: Number.parseFloat(k.o),
+    high: Number.parseFloat(k.h),
+    low: Number.parseFloat(k.l),
+    close: Number.parseFloat(k.c),
+    volume: Number.parseFloat(k.v),
+  };
 }
 
 function mapHttpError(err: unknown): CryptoError {

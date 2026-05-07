@@ -5,11 +5,20 @@ import { FormsModule } from '@angular/forms';
 import { MarketSortField } from '../../core/data';
 import { PriceFlash } from '../../shared/price-flash/price-flash';
 import { Sparkline, Trend } from '../../shared/sparkline/sparkline';
+import { CoinDetail } from './coin-detail/coin-detail';
 import { WatchlistState } from './watchlist-state';
 
 @Component({
   selector: 'app-watchlist',
-  imports: [AsyncPipe, DecimalPipe, PercentPipe, FormsModule, Sparkline, PriceFlash],
+  imports: [
+    AsyncPipe,
+    DecimalPipe,
+    PercentPipe,
+    FormsModule,
+    Sparkline,
+    PriceFlash,
+    CoinDetail,
+  ],
   providers: [WatchlistState],
   templateUrl: './watchlist.html',
   styleUrl: './watchlist.scss',
@@ -17,6 +26,14 @@ import { WatchlistState } from './watchlist-state';
 })
 export class Watchlist {
   protected readonly state = inject(WatchlistState);
+
+  protected onSelect(id: string): void {
+    this.state.select(id);
+  }
+
+  protected onCloseDetail(): void {
+    this.state.select(null);
+  }
 
   protected trendOf(change: number | undefined): Trend {
     if (change === undefined || change === 0) return 'neutral';

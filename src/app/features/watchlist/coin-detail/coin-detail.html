@@ -1,0 +1,119 @@
+<div class="backdrop" (click)="onBackdropClick($event)">
+  <section class="panel" role="dialog" aria-modal="true">
+    <header class="panel__header">
+      <div class="panel__title">
+        <span class="panel__symbol">{{ coin().symbol }}</span>
+        <span class="panel__name">{{ coin().name }}</span>
+      </div>
+      <button type="button" class="panel__close" aria-label="Close" (click)="onClose()">
+        ×
+      </button>
+    </header>
+
+    <div class="panel__price">
+      <span
+        class="panel__price-value"
+        [appPriceFlash]="coin().price"
+      >
+        {{ coin().price | number: priceDigits(coin().price) }}
+      </span>
+      <span class="panel__currency">{{ coin().vsCurrency.toUpperCase() }}</span>
+      @if (headerChange$ | async; as hc) {
+        <span
+          class="panel__change"
+          [class.up]="(hc.pct ?? 0) > 0"
+          [class.down]="(hc.pct ?? 0) < 0"
+        >
+          @if (hc.pct !== null) {
+            {{ hc.pct / 100 | percent: '1.2-2' }}
+          } @else {
+            <span class="muted">—</span>
+          }
+          <span class="panel__change-period">{{ hc.label }}</span>
+        </span>
+      }
+    </div>
+
+    <nav class="panel__ranges">
+      <div class="panel__ranges-list">
+        @for (r of ranges; track r) {
+          <button
+            type="button"
+            class="range-btn"
+            [class.is-active]="(range$ | async) === r"
+            (click)="setRange(r)"
+          >{{ rangeLabel(r) }}</button>
+        }
+      </div>
+      <div class="panel__chart-type">
+        <button
+          type="button"
+          class="range-btn"
+          [class.is-active]="(chartType$ | async) === 'candle'"
+          (click)="setChartType('candle')"
+        >Candles</button>
+        <button
+          type="button"
+          class="range-btn"
+          [class.is-active]="(chartType$ | async) === 'line'"
+          (click)="setChartType('line')"
+        >Line</button>
+      </div>
+    </nav>
+
+    <div class="panel__chart">
+      @if (chart$ | async; as state) {
+        @if (state.loading) {
+          <div class="panel__chart-overlay">Loading…</div>
+        } @else if (state.error) {
+          <div class="panel__chart-overlay panel__chart-overlay--error">
+            {{ state.error }}
+          </div>
+        } @else if (state.kind === 'line') {
+          @if (state.points.length === 0) {
+            <div class="panel__chart-overlay">No data for this range.</div>
+          } @else {
+            <app-price-chart
+              [points]="state.points"
+              [range]="(range$ | async) ?? '7d'"
+            />
+          }
+        } @else {
+          @if (state.candles.length === 0) {
+            <div class="panel__chart-overlay">No data for this range.</div>
+          } @else {
+            <app-candle-chart
+              [candles]="state.candles"
+              [range]="(range$ | async) ?? '7d'"
+            />
+          }
+        }
+      }
+    </div>
+
+    <dl class="panel__stats">
+      @if (coin().marketCap !== undefined) {
+        <div>
+          <dt>Market Cap</dt>
+          <dd>$ {{ coin().marketCap | number: '1.0-0' }}</dd>
+        </div>
+      }
+      @if (coin().volume24h !== undefined) {
+        <div>
+          <dt>24h Volume</dt>
+          <dd>$ {{ coin().volume24h | number: '1.0-0' }}</dd>
+        </div>
+      }
+      @if (coin().circulatingSupply !== undefined) {
+        <div>
+          <dt>Circulating Supply</dt>
+          <dd>{{ coin().circulatingSupply | number: '1.0-0' }} {{ coin().symbol }}</dd>
+        </div>
+      }
+      <div>
+        <dt>Updated</dt>
+        <dd>{{ coin().updatedAt | date: 'medium' }}</dd>
+      </div>
+    </dl>
+  </section>
+</div>

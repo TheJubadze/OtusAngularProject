@@ -60,7 +60,7 @@
     </thead>
     <tbody>
       @for (row of state.rows$ | async; track row.id) {
-        <tr>
+        <tr class="is-clickable" (click)="onSelect(row.id)">
           <td>{{ row.name }}</td>
           <td class="muted">{{ row.symbol }}</td>
           <td class="num" [appPriceFlash]="row.price">
@@ -105,4 +105,11 @@
       }
     </tbody>
   </table>
+
+  @if (state.selectedRow$ | async; as selected) {
+    <app-coin-detail
+      [coin]="selected"
+      (close)="onCloseDetail()"
+    />
+  }
 </section>
