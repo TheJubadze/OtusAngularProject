@@ -1,0 +1,15 @@
+<div class="app-shell">
+  <header class="app-header">
+    <h1 class="app-header__title">Crypto Platform</h1>
+  </header>
+  <div class="app-body">
+    <nav class="app-sidebar">
+      <a routerLink="/watchlist" routerLinkActive="is-active">Watchlist</a>
+      <a routerLink="/converter" routerLinkActive="is-active">Converter</a>
+      <a routerLink="/wallet" routerLinkActive="is-active">Wallet</a>
+    </nav>
+    <main class="app-main">
+      <router-outlet />
+    </main>
+  </div>
+</div>

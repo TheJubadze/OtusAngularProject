@@ -1,0 +1,68 @@
+:host {
+  display: block;
+  height: 100vh;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0e1117;
+  color: #e6edf3;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.app-header {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #21262d;
+  background: #161b22;
+
+  &__title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-sidebar {
+  width: 200px;
+  border-right: 1px solid #21262d;
+  background: #11161d;
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  a {
+    display: block;
+    padding: 0.5rem 1.25rem;
+    color: #8b949e;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    font-size: 0.9rem;
+
+    &:hover {
+      color: #e6edf3;
+      background: #161b22;
+    }
+
+    &.is-active {
+      color: #58a6ff;
+      border-left-color: #58a6ff;
+      background: #161b22;
+    }
+  }
+}
+
+.app-main {
+  flex: 1;
+  overflow: auto;
+  padding: 1.25rem 1.5rem;
+}

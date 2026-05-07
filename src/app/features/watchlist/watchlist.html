@@ -1,0 +1,106 @@
+<section class="watchlist">
+  <header class="watchlist__toolbar">
+    <input
+      class="watchlist__search"
+      type="search"
+      placeholder="Search coin or symbol..."
+      [ngModel]="state.search$ | async"
+      (ngModelChange)="onSearch($event)"
+    />
+    <label class="watchlist__currency">
+      <span>vs</span>
+      <select
+        [ngModel]="state.vsCurrency$ | async"
+        (ngModelChange)="onCurrencyChange($event)"
+      >
+        @for (c of state.supportedCurrencies$ | async; track c) {
+          <option [value]="c">{{ c.toUpperCase() }}</option>
+        }
+      </select>
+    </label>
+    @if (state.loading$ | async) {
+      <span class="watchlist__status">Loading…</span>
+    }
+    @if (state.error$ | async; as err) {
+      <span class="watchlist__status watchlist__status--error">{{ err }}</span>
+    }
+  </header>
+
+  <table class="watchlist__table">
+    <thead>
+      <tr>
+        <th class="is-sortable" (click)="onSort('name')">
+          Name
+          @if ((state.sortBy$ | async) === 'name') {
+            <span>{{ (state.sortDir$ | async) === 'asc' ? '▲' : '▼' }}</span>
+          }
+        </th>
+        <th>Symbol</th>
+        <th class="is-sortable num" (click)="onSort('price')">
+          Price
+          @if ((state.sortBy$ | async) === 'price') {
+            <span>{{ (state.sortDir$ | async) === 'asc' ? '▲' : '▼' }}</span>
+          }
+        </th>
+        <th class="is-sortable num" (click)="onSort('change24hPct')">
+          24h
+          @if ((state.sortBy$ | async) === 'change24hPct') {
+            <span>{{ (state.sortDir$ | async) === 'asc' ? '▲' : '▼' }}</span>
+          }
+        </th>
+        <th class="is-sortable num" (click)="onSort('marketCap')">
+          Market Cap
+          @if ((state.sortBy$ | async) === 'marketCap') {
+            <span>{{ (state.sortDir$ | async) === 'asc' ? '▲' : '▼' }}</span>
+          }
+        </th>
+        <th class="num">Supply</th>
+        <th class="chart-col">7d</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of state.rows$ | async; track row.id) {
+        <tr>
+          <td>{{ row.name }}</td>
+          <td class="muted">{{ row.symbol }}</td>
+          <td class="num">{{ row.price | number: priceDigits(row.price) }}</td>
+          <td
+            class="num"
+            [class.up]="(row.change24hPct ?? 0) > 0"
+            [class.down]="(row.change24hPct ?? 0) < 0"
+          >
+            {{ (row.change24hPct ?? 0) / 100 | percent: '1.2-2' }}
+          </td>
+          <td class="num">
+            @if (row.marketCap !== undefined) {
+              {{ row.marketCap | number: '1.0-0' }}
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+          <td class="num">
+            @if (row.circulatingSupply !== undefined) {
+              {{ row.circulatingSupply | number: '1.0-0' }}
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+          <td class="chart-col">
+            @if (row.history && row.history.length > 0) {
+              <app-sparkline
+                [points]="row.history"
+                [trend]="trendOf(row.change24hPct)"
+              />
+            } @else {
+              <span class="muted">…</span>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="7" class="muted center">No coins.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</section>
