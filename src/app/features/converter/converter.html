@@ -1,0 +1,122 @@
+<section class="converter">
+  <header class="converter__toolbar">
+    <h2 class="converter__title">Converter</h2>
+    <label class="converter__currency">
+      <span>vs</span>
+      <select
+        [ngModel]="state.vsCurrency$ | async"
+        (ngModelChange)="onCurrencyChange($event)"
+      >
+        @for (c of state.supportedCurrencies$ | async; track c) {
+          <option [value]="c">{{ c.toUpperCase() }}</option>
+        }
+      </select>
+    </label>
+    @if (state.loading$ | async) {
+      <span class="converter__status">Loading…</span>
+    }
+    @if (state.error$ | async; as err) {
+      <span class="converter__status converter__status--error">{{ err }}</span>
+    }
+  </header>
+
+  @if (state.coins$ | async; as coins) {
+    <div class="converter__card">
+      <div class="converter__side">
+        <label class="converter__label">From</label>
+        <div class="converter__row">
+          <select
+            class="converter__coin"
+            [ngModel]="state.fromCoinId$ | async"
+            (ngModelChange)="onFromCoinChange($event)"
+          >
+            @for (c of coins; track c.id) {
+              <option [value]="c.id">{{ c.symbol.toUpperCase() }} — {{ c.name }}</option>
+            }
+          </select>
+          <input
+            class="converter__amount"
+            type="number"
+            min="0"
+            step="any"
+            inputmode="decimal"
+            [ngModel]="state.fromAmount$ | async"
+            (ngModelChange)="onFromAmountChange($event)"
+          />
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="converter__swap"
+        title="Swap"
+        (click)="onSwap()"
+      >⇅</button>
+
+      <div class="converter__side">
+        <label class="converter__label">To</label>
+        <div class="converter__row">
+          <select
+            class="converter__coin"
+            [ngModel]="state.toCoinId$ | async"
+            (ngModelChange)="onToCoinChange($event)"
+          >
+            @for (c of coins; track c.id) {
+              <option [value]="c.id">{{ c.symbol.toUpperCase() }} — {{ c.name }}</option>
+            }
+          </select>
+          <input
+            class="converter__amount"
+            type="number"
+            min="0"
+            step="any"
+            inputmode="decimal"
+            [ngModel]="state.toAmount$ | async"
+            (ngModelChange)="onToAmountChange($event)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="converter__rate">
+      @let fromCoin = state.fromCoin$ | async;
+      @let toCoin = state.toCoin$ | async;
+      @let prices = state.prices$ | async;
+      @let rate = state.rate$ | async;
+      @let vs = ((state.vsCurrency$ | async) ?? '').toUpperCase();
+
+      @if (rate != null && fromCoin && toCoin) {
+        <span class="converter__rate-line">
+          1
+          <strong>{{ fromCoin.symbol.toUpperCase() }}</strong>
+          =
+          <span class="converter__rate-value" [appPriceFlash]="rate">
+            {{ rate | number: '1.2-8' }}
+          </span>
+          <strong>{{ toCoin.symbol.toUpperCase() }}</strong>
+        </span>
+      } @else if (!(state.loading$ | async)) {
+        <span class="converter__rate-line muted">Rate unavailable.</span>
+      }
+
+      @if (prices) {
+        <span class="converter__rate-prices">
+          @if (prices.from != null && fromCoin) {
+            <span class="converter__rate-price">
+              1 {{ fromCoin.symbol.toUpperCase() }} ≈
+              <span [appPriceFlash]="prices.from">{{ prices.from | number: priceDigits(prices.from) }}</span>
+              {{ vs }}
+            </span>
+          }
+          @if (prices.to != null && toCoin) {
+            <span class="converter__rate-price">
+              1 {{ toCoin.symbol.toUpperCase() }} ≈
+              <span [appPriceFlash]="prices.to">{{ prices.to | number: priceDigits(prices.to) }}</span>
+              {{ vs }}
+            </span>
+          }
+        </span>
+      }
+    </div>
+  }
+</section>
