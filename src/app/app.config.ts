@@ -1,9 +1,13 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, isDevMode, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
+import { provideEffects } from '@ngrx/effects';
+import { provideStore, provideState } from '@ngrx/store';
+import { provideStoreDevtools } from '@ngrx/store-devtools';
 
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';
+import { prefsFeature } from './core/store/prefs';
 import {
   CRYPTO_PROVIDER,
   CRYPTO_PROVIDER_REGISTRATION,
@@ -22,6 +26,18 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(),
+
+    // NgRx: empty root store + per-feature slices, plus DevTools in dev.
+    // Effects are registered with no listeners yet; we'll add them when
+    // we move HTTP-driven state (markets, candles) to the store.
+    provideStore(),
+    provideState(prefsFeature),
+    provideEffects(),
+    provideStoreDevtools({
+      maxAge: 50,
+      logOnly: !isDevMode(),
+      autoPause: true,
+    }),
 
     // CoinGecko demo-plan API key. Pulled from environment.ts (committed,
     // empty by default) or environment.local.ts (gitignored). Run
