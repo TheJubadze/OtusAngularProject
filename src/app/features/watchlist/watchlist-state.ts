@@ -6,7 +6,6 @@ import {
   Observable,
   catchError,
   combineLatest,
-  debounceTime,
   distinctUntilChanged,
   map,
   of,
@@ -76,7 +75,6 @@ export class WatchlistState {
    */
   private readonly fetchQuery$: Observable<MarketsQuery> = combineLatest([
     this.search$.pipe(
-      debounceTime(200),
       map((s) => s.trim()),
       distinctUntilChanged(),
     ),

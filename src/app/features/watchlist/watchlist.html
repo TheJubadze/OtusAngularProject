@@ -1,11 +1,10 @@
 <section class="watchlist">
   <header class="watchlist__toolbar">
-    <input
+    <app-search-box
       class="watchlist__search"
-      type="search"
       placeholder="Search coin or symbol..."
-      [ngModel]="state.search$ | async"
-      (ngModelChange)="onSearch($event)"
+      [value]="(state.search$ | async) ?? ''"
+      (valueChange)="onSearch($event)"
     />
     <label class="watchlist__currency">
       <span>vs</span>

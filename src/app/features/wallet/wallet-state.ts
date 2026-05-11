@@ -5,7 +5,6 @@ import {
   Observable,
   catchError,
   combineLatest,
-  debounceTime,
   distinctUntilChanged,
   map,
   of,
@@ -123,7 +122,7 @@ export class WalletState {
   readonly rows$: Observable<readonly WalletRow[]> = combineLatest([
     this.holdings$,
     this.prices$,
-    this.search$.pipe(debounceTime(100), distinctUntilChanged()),
+    this.search$.pipe(distinctUntilChanged()),
   ]).pipe(
     map(([holdings, prices, search]) => {
       const q = search.trim().toLowerCase();

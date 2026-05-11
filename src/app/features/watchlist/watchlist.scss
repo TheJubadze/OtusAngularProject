@@ -16,17 +16,6 @@
 
   &__search {
     flex: 0 0 280px;
-    padding: 0.5rem 0.75rem;
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    color: #e6edf3;
-    font-size: 0.9rem;
-
-    &:focus {
-      outline: none;
-      border-color: #58a6ff;
-    }
   }
 
   &__currency {

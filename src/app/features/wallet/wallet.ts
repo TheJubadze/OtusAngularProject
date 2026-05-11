@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 
 import { Holding, MarketRow } from '../../core/domain';
 import { PriceFlash } from '../../shared/price-flash/price-flash';
+import { SearchBox } from '../../shared/search-box/search-box';
 import { WalletState } from './wallet-state';
 
 @Component({
   selector: 'app-wallet',
-  imports: [AsyncPipe, DatePipe, DecimalPipe, FormsModule, PriceFlash],
+  imports: [AsyncPipe, DatePipe, DecimalPipe, FormsModule, PriceFlash, SearchBox],
   providers: [WalletState],
   templateUrl: './wallet.html',
   styleUrl: './wallet.scss',

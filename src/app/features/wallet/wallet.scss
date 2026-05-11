@@ -148,17 +148,6 @@
 
   &__search {
     flex: 0 1 220px;
-    padding: 0.4rem 0.6rem;
-    background: #0d1117;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    color: #e6edf3;
-    font-size: 0.85rem;
-
-    &:focus {
-      outline: none;
-      border-color: #58a6ff;
-    }
   }
 
   &__table {

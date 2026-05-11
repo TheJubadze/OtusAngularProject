@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 
 import { MarketSortField } from '../../core/data';
 import { PriceFlash } from '../../shared/price-flash/price-flash';
+import { SearchBox } from '../../shared/search-box/search-box';
 import { Sparkline, Trend } from '../../shared/sparkline/sparkline';
 import { CoinDetail } from './coin-detail/coin-detail';
 import { WatchlistState } from './watchlist-state';
@@ -15,6 +16,7 @@ import { WatchlistState } from './watchlist-state';
     DecimalPipe,
     PercentPipe,
     FormsModule,
+    SearchBox,
     Sparkline,
     PriceFlash,
     CoinDetail,

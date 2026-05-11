@@ -45,13 +45,12 @@
     <section class="wallet__holdings">
       <header class="wallet__section-head">
         <h3>Holdings</h3>
-        <input
+        <app-search-box
           class="wallet__search"
-          type="search"
           placeholder="Search holdings…"
-          [ngModel]="state.search$ | async"
-          (ngModelChange)="onSearch($event)"
-          name="walletSearch"
+          [debounceMs]="100"
+          [value]="(state.search$ | async) ?? ''"
+          (valueChange)="onSearch($event)"
         />
       </header>
 
