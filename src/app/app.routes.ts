@@ -12,5 +12,10 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/converter/converter').then((m) => m.Converter),
   },
+  {
+    path: 'wallet',
+    loadComponent: () =>
+      import('./features/wallet/wallet').then((m) => m.Wallet),
+  },
   { path: '**', redirectTo: 'watchlist' },
 ];

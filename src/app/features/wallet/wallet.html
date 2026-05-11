@@ -1,0 +1,236 @@
+<section class="wallet">
+  <header class="wallet__toolbar">
+    <h2 class="wallet__title">Wallet</h2>
+    <label class="wallet__currency">
+      <span>vs</span>
+      <select
+        [ngModel]="state.vsCurrency$ | async"
+        (ngModelChange)="onCurrencyChange($event)"
+        name="walletVs"
+      >
+        @for (c of state.supportedCurrencies$ | async; track c) {
+          <option [value]="c">{{ c.toUpperCase() }}</option>
+        }
+      </select>
+    </label>
+    @if ((state.loadingHoldings$ | async) || (state.loadingTransactions$ | async) || (state.mutating$ | async)) {
+      <span class="wallet__status">Working…</span>
+    }
+    @if (state.error$ | async; as err) {
+      <span class="wallet__status wallet__status--error">
+        {{ err }}
+        <button type="button" class="wallet__dismiss" (click)="onDismissError()">✕</button>
+      </span>
+    }
+  </header>
+
+  @let vs = ((state.vsCurrency$ | async) ?? '').toUpperCase();
+  @let total = state.total$ | async;
+  @let coins = state.availableCoins$ | async;
+  @let holdings = state.holdings$ | async;
+  @let selectedId = state.selectedCoinId$ | async;
+
+  <div class="wallet__total">
+    <div class="wallet__total-label">Total portfolio</div>
+    @if (total) {
+      <div class="wallet__total-value" [appPriceFlash]="total.value">
+        @if (!total.complete) { <span class="wallet__approx" title="Some held coins have no price on the active provider">≈</span> }
+        {{ total.value | number: '1.2-2' }}
+        <span class="wallet__total-currency">{{ vs }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="wallet__columns">
+    <section class="wallet__holdings">
+      <header class="wallet__section-head">
+        <h3>Holdings</h3>
+        <input
+          class="wallet__search"
+          type="search"
+          placeholder="Search holdings…"
+          [ngModel]="state.search$ | async"
+          (ngModelChange)="onSearch($event)"
+          name="walletSearch"
+        />
+      </header>
+
+      <table class="wallet__table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Symbol</th>
+            <th class="num">Amount</th>
+            <th class="num">Price</th>
+            <th class="num">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of state.rows$ | async; track row.id) {
+            <tr
+              class="is-clickable"
+              [class.is-selected]="selectedId === row.coinId"
+              (click)="onRowClick(row.coinId, selectedId)"
+            >
+              <td>{{ row.name }}</td>
+              <td class="muted">{{ row.symbol }}</td>
+              <td class="num">{{ row.amount | number: amountDigits(row.amount) }}</td>
+              <td class="num" [appPriceFlash]="row.price">
+                @if (row.price != null) {
+                  {{ row.price | number: priceDigits(row.price) }}
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+              <td class="num" [appPriceFlash]="row.value">
+                @if (row.value != null) {
+                  {{ row.value | number: '1.2-2' }} {{ vs }}
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="muted center">
+                No holdings yet — use the Deposit form to add one.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <section class="wallet__actions">
+      <form
+        class="wallet__form"
+        (ngSubmit)="onDepositSubmit(coins ?? [])"
+        #depositForm="ngForm"
+      >
+        <h3>Deposit</h3>
+        <label>
+          <span>Coin</span>
+          <select [(ngModel)]="depositCoinId" name="depositCoin" required>
+            <option [ngValue]="null" disabled>— pick a coin —</option>
+            @for (c of coins; track c.id) {
+              <option [value]="c.id">{{ c.symbol.toUpperCase() }} — {{ c.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Amount</span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            inputmode="decimal"
+            placeholder="0.00"
+            [(ngModel)]="depositAmount"
+            name="depositAmount"
+            required
+          />
+        </label>
+        <label>
+          <span>Note (optional)</span>
+          <input
+            type="text"
+            placeholder="Source / memo"
+            [(ngModel)]="depositNote"
+            name="depositNote"
+          />
+        </label>
+        <button
+          type="submit"
+          class="wallet__submit wallet__submit--deposit"
+          [disabled]="depositForm.invalid || (state.mutating$ | async)"
+        >Deposit</button>
+      </form>
+
+      <form
+        class="wallet__form"
+        (ngSubmit)="onSendSubmit(holdings ?? [])"
+        #sendForm="ngForm"
+      >
+        <h3>Send</h3>
+        <label>
+          <span>Coin</span>
+          <select [(ngModel)]="sendCoinId" name="sendCoin" required>
+            <option [ngValue]="null" disabled>— pick a coin —</option>
+            @for (h of holdings; track h.id) {
+              <option [value]="h.coinId">
+                {{ h.symbol.toUpperCase() }} — {{ h.name }}
+                ({{ h.amount | number: amountDigits(h.amount) }})
+              </option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>
+            Amount
+            <button
+              type="button"
+              class="wallet__max"
+              (click)="onSendMax(holdings ?? [])"
+            >max</button>
+          </span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            inputmode="decimal"
+            placeholder="0.00"
+            [(ngModel)]="sendAmount"
+            name="sendAmount"
+            required
+          />
+        </label>
+        <label>
+          <span>Address / note (optional)</span>
+          <input
+            type="text"
+            placeholder="0x… or memo"
+            [(ngModel)]="sendNote"
+            name="sendNote"
+          />
+        </label>
+        <button
+          type="submit"
+          class="wallet__submit wallet__submit--send"
+          [disabled]="sendForm.invalid || (state.mutating$ | async) || (holdings?.length ?? 0) === 0"
+        >Send</button>
+      </form>
+    </section>
+  </div>
+
+  <section class="wallet__history">
+    <header class="wallet__section-head">
+      <h3>
+        Transactions
+        @if (selectedId) {
+          <span class="wallet__history-filter">
+            for <strong>{{ selectedId }}</strong>
+            <button type="button" class="wallet__clear" (click)="onClearSelection()">clear filter</button>
+          </span>
+        } @else {
+          <span class="wallet__history-filter muted">all coins</span>
+        }
+      </h3>
+    </header>
+    <ul class="wallet__tx-list">
+      @for (tx of state.visibleTransactions$ | async; track tx.id) {
+        <li class="wallet__tx" [class.is-deposit]="tx.kind === 'deposit'" [class.is-send]="tx.kind === 'send'">
+          <span class="wallet__tx-sign">{{ tx.kind === 'deposit' ? '+' : '−' }}</span>
+          <span class="wallet__tx-amount">{{ tx.amount | number: amountDigits(tx.amount) }}</span>
+          <span class="wallet__tx-symbol">{{ tx.symbol }}</span>
+          <span class="wallet__tx-kind">{{ tx.kind }}</span>
+          <span class="wallet__tx-date">{{ tx.createdAt | date: 'medium' }}</span>
+          @if (tx.note) {
+            <span class="wallet__tx-note" [title]="tx.note">{{ tx.note }}</span>
+          }
+        </li>
+      } @empty {
+        <li class="wallet__tx wallet__tx--empty muted">No transactions yet.</li>
+      }
+    </ul>
+  </section>
+</section>

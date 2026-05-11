@@ -8,10 +8,12 @@ import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';
 import { prefsFeature } from './core/store/prefs';
+import { WalletEffects, walletFeature } from './core/store/wallet';
 import {
   CRYPTO_PROVIDER,
   CRYPTO_PROVIDER_REGISTRATION,
   ProviderRegistration,
+  WALLET_API_BASE_URL,
 } from './core/data';
 import { BinanceCryptoProvider } from './core/data/providers/binance-crypto-provider';
 import {
@@ -27,12 +29,13 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(),
 
-    // NgRx: empty root store + per-feature slices, plus DevTools in dev.
-    // Effects are registered with no listeners yet; we'll add them when
-    // we move HTTP-driven state (markets, candles) to the store.
+    // NgRx: empty root store + per-feature slices, with effects driving
+    // the wallet's HTTP traffic against json-server. DevTools enabled in
+    // dev for action/state inspection.
     provideStore(),
     provideState(prefsFeature),
-    provideEffects(),
+    provideState(walletFeature),
+    provideEffects(WalletEffects),
     provideStoreDevtools({
       maxAge: 50,
       logOnly: !isDevMode(),
@@ -43,6 +46,10 @@ export const appConfig: ApplicationConfig = {
     // empty by default) or environment.local.ts (gitignored). Run
     // `npm run start:local` to use the local file.
     { provide: COINGECKO_API_KEY, useValue: environment.coingeckoApiKey },
+
+    // Fake-backend (json-server) base URL for the Wallet feature. Run the
+    // server with `npm run wallet:server` in parallel with `npm start`.
+    { provide: WALLET_API_BASE_URL, useValue: environment.walletApiBaseUrl },
 
     {
       provide: CRYPTO_PROVIDER_REGISTRATION,

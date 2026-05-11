@@ -12,4 +12,5 @@
 export const environment = {
   production: false,
   coingeckoApiKey: '',
+  walletApiBaseUrl: 'http://localhost:3001',
 };

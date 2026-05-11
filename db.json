@@ -1,0 +1,95 @@
+{
+  "holdings": [
+    {
+      "id": "99c7d1de-dbae-40ba-be31-adf0650b0b72",
+      "coinId": "bitcoin",
+      "symbol": "BTC",
+      "name": "Bitcoin",
+      "amount": 1.498,
+      "updatedAt": "2026-05-11T17:35:02.444Z"
+    },
+    {
+      "id": "h-seed-eth",
+      "coinId": "ethereum",
+      "symbol": "ETH",
+      "name": "Ethereum",
+      "amount": 4.2,
+      "updatedAt": "2026-05-01T10:00:00.000Z"
+    },
+    {
+      "id": "h-seed-sol",
+      "coinId": "solana",
+      "symbol": "SOL",
+      "name": "Solana",
+      "amount": 25,
+      "updatedAt": "2026-05-03T08:30:00.000Z"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "t-seed-1",
+      "coinId": "bitcoin",
+      "symbol": "BTC",
+      "kind": "deposit",
+      "amount": 0.5,
+      "createdAt": "2026-04-15T12:00:00.000Z"
+    },
+    {
+      "id": "t-seed-2",
+      "coinId": "ethereum",
+      "symbol": "ETH",
+      "kind": "deposit",
+      "amount": 5,
+      "createdAt": "2026-04-15T12:05:00.000Z"
+    },
+    {
+      "id": "t-seed-3",
+      "coinId": "ethereum",
+      "symbol": "ETH",
+      "kind": "send",
+      "amount": 0.8,
+      "note": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+      "createdAt": "2026-04-20T15:30:00.000Z"
+    },
+    {
+      "id": "t-seed-4",
+      "coinId": "solana",
+      "symbol": "SOL",
+      "kind": "deposit",
+      "amount": 25,
+      "createdAt": "2026-05-03T08:30:00.000Z"
+    },
+    {
+      "id": "4f493495-02c8-49d5-83d3-ed6b7cafc770",
+      "coinId": "bitcoin",
+      "symbol": "BTC",
+      "kind": "deposit",
+      "amount": 1,
+      "createdAt": "2026-05-11T17:29:02.538Z"
+    },
+    {
+      "id": "1d09822d-8093-4b59-9186-068e3cbc8ef0",
+      "coinId": "bitcoin",
+      "symbol": "BTC",
+      "kind": "send",
+      "amount": 0.002,
+      "createdAt": "2026-05-11T17:29:18.019Z"
+    },
+    {
+      "id": "d5c76443-6af0-4497-a52f-dd0075195934",
+      "coinId": "bitcoin",
+      "symbol": "BTC",
+      "kind": "deposit",
+      "amount": 1,
+      "createdAt": "2026-05-11T17:34:24.576Z"
+    },
+    {
+      "id": "51ee0b68-15f7-401e-8c15-a5236a3715a1",
+      "coinId": "bitcoin",
+      "symbol": "BTC",
+      "kind": "send",
+      "amount": 1,
+      "createdAt": "2026-05-11T17:35:02.444Z"
+    }
+  ]
+}
