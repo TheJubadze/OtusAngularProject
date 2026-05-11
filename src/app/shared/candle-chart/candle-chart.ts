@@ -1,10 +1,13 @@
+import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
   OnDestroy,
   effect,
+  inject,
   input,
+  signal,
   viewChild,
 } from '@angular/core';
 import {
@@ -48,6 +51,21 @@ const MA_SPECS: readonly MaSpec[] = [
   { period: 99, color: '#a78bfa' },  // violet
 ];
 
+const CANDLE_COLORS = {
+  up: '#3fb950',
+  down: '#f85149',
+  unchanged: '#8b949e',
+} as const;
+
+interface ThemeColors {
+  readonly tooltipBg: string;
+  readonly text: string;
+  readonly textSecondary: string;
+  readonly border: string;
+  readonly axis: string;
+  readonly grid: string;
+}
+
 @Component({
   selector: 'app-candle-chart',
   template: '<canvas #canvas></canvas>',
@@ -70,19 +88,34 @@ export class CandleChart implements OnDestroy {
 
   private readonly canvasRef =
     viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+  private readonly doc = inject(DOCUMENT);
 
   // The financial chart's data type isn't exported well; cast at the boundary.
   private chart?: Chart;
+  private themeObserver?: MutationObserver;
+  /** See PriceChart for the rationale; same pattern. */
+  private readonly themeTick = signal(0);
 
   constructor() {
     effect(() => {
       const candles = this.candles() ?? [];
       const range = this.range();
+      this.themeTick();
       this.render(candles, range);
+    });
+
+    this.themeObserver = new MutationObserver(() =>
+      this.themeTick.update((n) => n + 1),
+    );
+    this.themeObserver.observe(this.doc.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
     });
   }
 
   ngOnDestroy(): void {
+    this.themeObserver?.disconnect();
+    this.themeObserver = undefined;
     this.chart?.destroy();
     this.chart = undefined;
   }
@@ -90,6 +123,7 @@ export class CandleChart implements OnDestroy {
   private render(candles: readonly Candle[], range: Range): void {
     const canvas = this.canvasRef().nativeElement;
     const timeUnit = pickTimeUnit(range);
+    const theme = resolveThemeColors(this.doc.documentElement);
 
     // Compute MAs over the FULL fetched series (lookback candles included)
     // so that even MA(99) has data at the leftmost visible candle.
@@ -146,18 +180,11 @@ export class CandleChart implements OnDestroy {
               data: candleData as never,
               // chartjs-chart-financial picks colors per-candle automatically
               // (green when close >= open, red otherwise) but we override for
-              // theme consistency.
-              borderColor: '#30363d',
-              backgroundColors: {
-                up: '#3fb950',
-                down: '#f85149',
-                unchanged: '#8b949e',
-              } as never,
-              borderColors: {
-                up: '#3fb950',
-                down: '#f85149',
-                unchanged: '#8b949e',
-              } as never,
+              // theme consistency. The candle colors stay constant across
+              // light/dark — green/red are universal trading signals.
+              borderColor: theme.border,
+              backgroundColors: { ...CANDLE_COLORS } as never,
+              borderColors: { ...CANDLE_COLORS } as never,
             },
             ...MA_SPECS.map((spec, i) => ({
               type: 'line' as const,
@@ -191,7 +218,7 @@ export class CandleChart implements OnDestroy {
               position: 'top',
               align: 'start',
               labels: {
-                color: '#c9d1d9',
+                color: theme.textSecondary,
                 boxWidth: 8,
                 boxHeight: 8,
                 font: { size: 11 },
@@ -200,10 +227,10 @@ export class CandleChart implements OnDestroy {
               },
             },
             tooltip: {
-              backgroundColor: '#161b22',
-              titleColor: '#e6edf3',
-              bodyColor: '#e6edf3',
-              borderColor: '#30363d',
+              backgroundColor: theme.tooltipBg,
+              titleColor: theme.text,
+              bodyColor: theme.text,
+              borderColor: theme.border,
               borderWidth: 1,
               displayColors: true,
               callbacks: {
@@ -235,8 +262,8 @@ export class CandleChart implements OnDestroy {
               min: xMin,
               max: xMax,
               time: { unit: timeUnit },
-              ticks: { color: '#8b949e', maxTicksLimit: 6 },
-              grid: { color: 'rgba(48, 54, 61, 0.5)' },
+              ticks: { color: theme.axis, maxTicksLimit: 6 },
+              grid: { color: theme.grid },
             },
             y: {
               // Fixed axis width so the plot area's left edge is the same
@@ -246,10 +273,10 @@ export class CandleChart implements OnDestroy {
                 scale.width = 64;
               },
               ticks: {
-                color: '#8b949e',
+                color: theme.axis,
                 callback: (value) => formatPrice(Number(value)),
               },
-              grid: { color: 'rgba(48, 54, 61, 0.5)' },
+              grid: { color: theme.grid },
             },
           },
         },
@@ -258,9 +285,14 @@ export class CandleChart implements OnDestroy {
     }
 
     this.chart.data.datasets[0].data = candleData as never;
+    // Candle dataset's `borderColor` follows the surface border so the
+    // outline pops against either palette.
+    (this.chart.data.datasets[0] as { borderColor?: string }).borderColor =
+      theme.border;
     for (let i = 0; i < MA_SPECS.length; i++) {
       this.chart.data.datasets[i + 1].data = maData[i] as never;
     }
+    applyThemeToChart(this.chart, theme);
     if (this.chart.options.scales?.['x']) {
       const xScale = this.chart.options.scales['x'] as {
         time?: { unit?: string };
@@ -333,4 +365,61 @@ function formatPrice(value: number): string {
   if (value >= 1) return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
   if (value >= 0.01) return value.toFixed(4);
   return value.toFixed(6);
+}
+
+function resolveThemeColors(root: HTMLElement): ThemeColors {
+  const styles = getComputedStyle(root);
+  const read = (name: string, fallback: string) =>
+    styles.getPropertyValue(name).trim() || fallback;
+  const border = read('--border', '#30363d');
+  return {
+    tooltipBg: read('--surface', '#161b22'),
+    text: read('--text', '#e6edf3'),
+    textSecondary: read('--text-2', '#c9d1d9'),
+    border,
+    axis: read('--text-muted', '#8b949e'),
+    grid: hexToRgba(border, 0.5),
+  };
+}
+
+function applyThemeToChart(chart: Chart, theme: ThemeColors): void {
+  const tooltip = chart.options.plugins?.tooltip;
+  if (tooltip) {
+    tooltip.backgroundColor = theme.tooltipBg;
+    tooltip.titleColor = theme.text;
+    tooltip.bodyColor = theme.text;
+    tooltip.borderColor = theme.border;
+  }
+  const legendLabels = chart.options.plugins?.legend?.labels;
+  if (legendLabels) {
+    legendLabels.color = theme.textSecondary;
+  }
+  const xScale = chart.options.scales?.['x'] as
+    | { ticks?: { color?: string }; grid?: { color?: string } }
+    | undefined;
+  const yScale = chart.options.scales?.['y'] as
+    | { ticks?: { color?: string }; grid?: { color?: string } }
+    | undefined;
+  if (xScale?.ticks) xScale.ticks.color = theme.axis;
+  if (xScale?.grid) xScale.grid.color = theme.grid;
+  if (yScale?.ticks) yScale.ticks.color = theme.axis;
+  if (yScale?.grid) yScale.grid.color = theme.grid;
+}
+
+function hexToRgba(value: string, alpha: number): string {
+  const hex = value.startsWith('#') ? value : null;
+  if (hex && (hex.length === 7 || hex.length === 4)) {
+    const expand = hex.length === 4
+      ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
+      : hex;
+    const r = parseInt(expand.slice(1, 3), 16);
+    const g = parseInt(expand.slice(3, 5), 16);
+    const b = parseInt(expand.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  const rgb = value.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+  if (rgb) {
+    return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${alpha})`;
+  }
+  return `rgba(48, 54, 61, ${alpha})`;
 }

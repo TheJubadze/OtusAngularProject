@@ -76,6 +76,7 @@
             <app-price-chart
               [points]="state.points"
               [range]="(range$ | async) ?? '7d'"
+              [vsCurrency]="coin().vsCurrency"
             />
           }
         } @else {
@@ -95,13 +96,13 @@
       @if (coin().marketCap !== undefined) {
         <div>
           <dt>Market Cap</dt>
-          <dd>$ {{ coin().marketCap | number: '1.0-0' }}</dd>
+          <dd>{{ coin().marketCap | number: '1.0-0' }} {{ coin().vsCurrency.toUpperCase() }}</dd>
         </div>
       }
       @if (coin().volume24h !== undefined) {
         <div>
           <dt>24h Volume</dt>
-          <dd>$ {{ coin().volume24h | number: '1.0-0' }}</dd>
+          <dd>{{ coin().volume24h | number: '1.0-0' }} {{ coin().vsCurrency.toUpperCase() }}</dd>
         </div>
       }
       @if (coin().circulatingSupply !== undefined) {
