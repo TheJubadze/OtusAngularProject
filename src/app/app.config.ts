@@ -7,7 +7,7 @@ import { provideStoreDevtools } from '@ngrx/store-devtools';
 
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';
-import { prefsFeature } from './core/store/prefs';
+import { PrefsEffects, prefsFeature } from './core/store/prefs';
 import { WalletEffects, walletFeature } from './core/store/wallet';
 import {
   CRYPTO_PROVIDER,
@@ -35,7 +35,7 @@ export const appConfig: ApplicationConfig = {
     provideStore(),
     provideState(prefsFeature),
     provideState(walletFeature),
-    provideEffects(WalletEffects),
+    provideEffects(PrefsEffects, WalletEffects),
     provideStoreDevtools({
       maxAge: 50,
       logOnly: !isDevMode(),

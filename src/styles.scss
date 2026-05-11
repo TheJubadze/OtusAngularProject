@@ -1,12 +1,103 @@
-html, body {
+/*
+ * Theme tokens. The PrefsEffects observer writes the current theme name
+ * to `<html data-theme="...">` on every store update, which flips this
+ * variable layer. Components reference colors only via var(--token);
+ * adding a new theme = adding another `[data-theme="..."]` block here.
+ *
+ * Semantic naming (`--bg`, `--surface`, `--accent`) rather than literal
+ * (`--gray-900`) so swapping the palette doesn't fight the rules.
+ */
+
+:root,
+:root[data-theme='dark'] {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #11161d;
+  --surface-3: #1c2330;
+  --input-bg: #0d1117;
+
+  --border: #30363d;
+  --border-muted: #21262d;
+  --border-strong: #484f58;
+
+  --text: #e6edf3;
+  --text-2: #c9d1d9;
+  --text-muted: #8b949e;
+
+  --accent: #58a6ff;
+  --accent-hover: #79b8ff;
+  --accent-strong: #1f6feb;
+  --on-accent: #ffffff;
+
+  --up: #3fb950;
+  --down: #f85149;
+
+  --deposit: #238636;
+  --deposit-hover: #2ea043;
+  --send: #b54a3b;
+  --send-hover: #c95040;
+  --send-border: #d05a4a;
+
+  --flash-up-bg: rgba(63, 185, 80, 0.45);
+  --flash-down-bg: rgba(248, 81, 73, 0.45);
+
+  --selected-row-bg: rgba(31, 111, 235, 0.18);
+  --selected-row-hover-bg: rgba(31, 111, 235, 0.24);
+
+  --backdrop: rgba(1, 4, 9, 0.7);
+  --shadow: rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme='light'] {
+  --bg: #f6f8fa;
+  --surface: #ffffff;
+  --surface-2: #f0f3f6;
+  --surface-3: #e8ecf1;
+  --input-bg: #ffffff;
+
+  --border: #d0d7de;
+  --border-muted: #e3e7eb;
+  --border-strong: #afb8c1;
+
+  --text: #1f2328;
+  --text-2: #424a53;
+  --text-muted: #656d76;
+
+  --accent: #0969da;
+  --accent-hover: #0550ae;
+  --accent-strong: #0550ae;
+  --on-accent: #ffffff;
+
+  --up: #1a7f37;
+  --down: #cf222e;
+
+  --deposit: #1f883d;
+  --deposit-hover: #2da44e;
+  --send: #cf222e;
+  --send-hover: #a40e26;
+  --send-border: #cf222e;
+
+  --flash-up-bg: rgba(26, 127, 55, 0.28);
+  --flash-down-bg: rgba(207, 34, 46, 0.28);
+
+  --selected-row-bg: rgba(9, 105, 218, 0.12);
+  --selected-row-hover-bg: rgba(9, 105, 218, 0.18);
+
+  --backdrop: rgba(31, 35, 40, 0.45);
+  --shadow: rgba(31, 35, 40, 0.18);
+}
+
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
 }
 
 body {
-  background: #0e1117;
-  color: #e6edf3;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 * {

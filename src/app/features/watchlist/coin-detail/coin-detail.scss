@@ -5,7 +5,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(1, 4, 9, 0.7);
+  background: var(--backdrop);
   backdrop-filter: blur(2px);
   z-index: 1000;
   display: flex;
@@ -16,8 +16,8 @@
 }
 
 .panel {
-  background: #161b22;
-  border: 1px solid #30363d;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   width: min(720px, 100%);
   max-height: 90vh;
@@ -25,7 +25,7 @@
   flex-direction: column;
   gap: 1rem;
   padding: 1.25rem 1.5rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px var(--shadow);
   overflow: auto;
   animation: slideUp 160ms ease-out;
 
@@ -48,7 +48,7 @@
   }
 
   &__name {
-    color: #8b949e;
+    color: var(--text-muted);
     font-size: 1rem;
   }
 
@@ -57,15 +57,15 @@
     height: 32px;
     border-radius: 6px;
     background: transparent;
-    border: 1px solid #30363d;
-    color: #8b949e;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
     font-size: 1.4rem;
     line-height: 1;
     cursor: pointer;
 
     &:hover {
-      background: #21262d;
-      color: #e6edf3;
+      background: var(--border-muted);
+      color: var(--text);
     }
   }
 
@@ -86,7 +86,7 @@
   }
 
   &__currency {
-    color: #8b949e;
+    color: var(--text-muted);
     font-size: 0.95rem;
     text-transform: uppercase;
   }
@@ -97,12 +97,12 @@
     font-size: 1rem;
     font-variant-numeric: tabular-nums;
 
-    &.up { color: #3fb950; }
-    &.down { color: #f85149; }
+    &.up { color: var(--up); }
+    &.down { color: var(--down); }
   }
 
   &__change-period {
-    color: #8b949e;
+    color: var(--text-muted);
     font-weight: 400;
     margin-left: 0.3rem;
     font-size: 0.85rem;
@@ -126,13 +126,13 @@
     display: flex;
     gap: 0.3rem;
     padding-left: 0.5rem;
-    border-left: 1px solid #21262d;
+    border-left: 1px solid var(--border-muted);
   }
 
   &__chart {
     position: relative;
-    background: #0d1117;
-    border: 1px solid #21262d;
+    background: var(--input-bg);
+    border: 1px solid var(--border-muted);
     border-radius: 6px;
     padding: 0.75rem;
     min-height: 280px;
@@ -144,11 +144,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #8b949e;
+    color: var(--text-muted);
     font-size: 0.9rem;
 
     &--error {
-      color: #f85149;
+      color: var(--down);
     }
   }
 
@@ -158,7 +158,7 @@
     gap: 0.75rem 1.5rem;
     margin: 0;
     padding: 0.75rem 0 0;
-    border-top: 1px solid #21262d;
+    border-top: 1px solid var(--border-muted);
 
     > div {
       display: flex;
@@ -167,7 +167,7 @@
     }
 
     dt {
-      color: #8b949e;
+      color: var(--text-muted);
       font-size: 0.78rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
@@ -179,7 +179,7 @@
       font-size: 0.95rem;
     }
 
-    .muted { color: #8b949e; }
+    .muted { color: var(--text-muted); }
   }
 
   /* Inherit flash animation from watchlist scope is awkward; redefine here */
@@ -193,10 +193,10 @@
 
 .range-btn {
   padding: 0.35rem 0.7rem;
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
   border-radius: 5px;
-  color: #c9d1d9;
+  color: var(--text-2);
   font-size: 0.78rem;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -204,14 +204,14 @@
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 
   &:hover {
-    background: #21262d;
-    color: #e6edf3;
+    background: var(--border-muted);
+    color: var(--text);
   }
 
   &.is-active {
-    background: #1f6feb;
-    border-color: #1f6feb;
-    color: #ffffff;
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+    color: var(--on-accent);
   }
 }
 
@@ -226,11 +226,11 @@
 }
 
 @keyframes panelFlashUp {
-  0%   { background: rgba(63, 185, 80, 0.45); }
+  0%   { background: var(--flash-up-bg); }
   100% { background: transparent; }
 }
 
 @keyframes panelFlashDown {
-  0%   { background: rgba(248, 81, 73, 0.45); }
+  0%   { background: var(--flash-down-bg); }
   100% { background: transparent; }
 }

@@ -38,16 +38,16 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
     .search-box__input {
       width: 100%;
       padding: 0.5rem 0.75rem;
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 6px;
-      color: #e6edf3;
+      color: var(--text);
       font-size: 0.9rem;
       box-sizing: border-box;
     }
     .search-box__input:focus {
       outline: none;
-      border-color: #58a6ff;
+      border-color: var(--accent);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,

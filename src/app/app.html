@@ -1,16 +1,24 @@
 <div class="app-shell">
   <header class="app-header">
     <h1 class="app-header__title">Crypto Platform</h1>
-    <div class="app-header__providers">
-      <span class="app-header__providers-label">Source:</span>
-      @for (p of registry.available; track p.name) {
-        <button
-          type="button"
-          class="provider-btn"
-          [class.is-active]="(registry.activeName$ | async) === p.name"
-          (click)="onSelect(p.name)"
-        >{{ p.label }}</button>
-      }
+    <div class="app-header__actions">
+      <div class="app-header__providers">
+        <span class="app-header__providers-label">Source:</span>
+        @for (p of registry.available; track p.name) {
+          <button
+            type="button"
+            class="provider-btn"
+            [class.is-active]="(registry.activeName$ | async) === p.name"
+            (click)="onSelect(p.name)"
+          >{{ p.label }}</button>
+        }
+      </div>
+      <button
+        type="button"
+        class="theme-toggle"
+        [title]="(theme$ | async) === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+        (click)="onToggleTheme()"
+      >{{ themeLabel$ | async }}</button>
     </div>
   </header>
   <div class="app-body">

@@ -22,25 +22,25 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: #8b949e;
+    color: var(--text-muted);
     font-size: 0.85rem;
 
     select {
       padding: 0.45rem 0.6rem;
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 6px;
-      color: #e6edf3;
+      color: var(--text);
       font-size: 0.9rem;
     }
   }
 
   &__status {
-    color: #8b949e;
+    color: var(--text-muted);
     font-size: 0.85rem;
 
     &--error {
-      color: #f85149;
+      color: var(--down);
     }
   }
 
@@ -52,23 +52,23 @@
     th, td {
       padding: 0.6rem 0.75rem;
       text-align: left;
-      border-bottom: 1px solid #21262d;
+      border-bottom: 1px solid var(--border-muted);
     }
 
     thead th {
-      color: #8b949e;
+      color: var(--text-muted);
       font-weight: 500;
       font-size: 0.8rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      background: #11161d;
+      background: var(--surface-2);
       position: sticky;
       top: 0;
       z-index: 1;
     }
 
     tbody tr:hover {
-      background: #11161d;
+      background: var(--surface-2);
     }
 
     tbody tr.is-clickable {
@@ -80,12 +80,12 @@
       user-select: none;
 
       &:hover {
-        color: #e6edf3;
+        color: var(--text);
       }
 
       span {
         margin-left: 0.25rem;
-        color: #58a6ff;
+        color: var(--accent);
       }
     }
 
@@ -95,15 +95,15 @@
     }
 
     .muted {
-      color: #8b949e;
+      color: var(--text-muted);
     }
 
     .center {
       text-align: center;
     }
 
-    .up { color: #3fb950; }
-    .down { color: #f85149; }
+    .up { color: var(--up); }
+    .down { color: var(--down); }
 
     .chart-col {
       width: 130px;
@@ -121,11 +121,11 @@
 }
 
 @keyframes flashUp {
-  0%   { background: rgba(63, 185, 80, 0.45); }
+  0%   { background: var(--flash-up-bg); }
   100% { background: transparent; }
 }
 
 @keyframes flashDown {
-  0%   { background: rgba(248, 81, 73, 0.45); }
+  0%   { background: var(--flash-down-bg); }
   100% { background: transparent; }
 }
