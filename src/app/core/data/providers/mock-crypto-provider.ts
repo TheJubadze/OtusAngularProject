@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import {
   EMPTY,
   Observable,
-  concat,
   defer,
   delay,
   filter,
@@ -160,9 +159,9 @@ export class MockCryptoProvider implements CryptoDataProvider {
   ): Observable<Quote> {
     const vs = vsCurrency.toLowerCase();
     const seeds = SEEDS.filter((s) => coinIds.includes(s.id));
-    if (seeds.length === 0) {
-      return concat(of<Quote>(), timer(0)).pipe(switchMap(() => of<Quote>()));
-    }
+    // Nothing to stream — match CoinGecko's behavior so consumers can
+    // assume an unconditionally-terminating stream when there's no work.
+    if (seeds.length === 0) return EMPTY;
     return timer(0, 2000).pipe(
       switchMap(() => from(seeds.map((seed) => buildQuote(seed, vs)))),
     );

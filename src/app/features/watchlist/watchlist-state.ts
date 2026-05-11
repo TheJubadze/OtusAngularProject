@@ -116,9 +116,12 @@ export class WatchlistState {
       const ids = rows.map((r) => r.id);
       if (ids.length === 0) return of(rows);
       return this.provider.liveQuotes(ids, query.vsCurrency).pipe(
-        // Defensive: if a provider's live stream terminates with an error,
-        // fall back to the static rows so the UI keeps working.
-        catchError(() => EMPTY),
+        // Surface terminal errors to the UI but keep the static rows
+        // so the table stays populated instead of going blank.
+        catchError((err) => {
+          this.errorSubject.next(toMessage(err));
+          return EMPTY;
+        }),
         scan((acc, q) => applyQuote(acc, q), rows),
         startWith(rows),
       );

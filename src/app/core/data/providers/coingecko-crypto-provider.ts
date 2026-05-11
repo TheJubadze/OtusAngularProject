@@ -242,14 +242,20 @@ export class CoinGeckoCryptoProvider implements CryptoDataProvider {
   ): Observable<Quote> {
     if (coinIds.length === 0) return EMPTY;
     return timer(0, this.pollIntervalMs).pipe(
-      // catchError lives INSIDE switchMap so a single failed tick (429,
-      // network blip) doesn't terminate the whole polling stream.
       switchMap(() =>
         this.fetchSimplePrice(coinIds, vsCurrency).pipe(
+          // Transient errors (rate-limit, network blip) shouldn't kill the
+          // polling stream — emit no quotes and let the next tick retry.
+          // Anything fatal (bad key → 401/403, bad request → 400, server
+          // failure → 5xx) is rethrown so the consumer surfaces it.
           catchError((err) => {
-            // eslint-disable-next-line no-console
-            console.warn('[CoinGecko] liveQuotes tick failed:', err);
-            return of<Quote[]>([]);
+            if (
+              err instanceof CryptoError &&
+              (err.kind === 'rate-limited' || err.kind === 'network')
+            ) {
+              return of<Quote[]>([]);
+            }
+            return throwError(() => err);
           }),
         ),
       ),

@@ -112,7 +112,10 @@ export class ConverterState {
       };
       const ids = fromId === toId ? [fromId] : [fromId, toId];
       return this.provider.liveQuotes(ids, vsCurrency).pipe(
-        catchError(() => EMPTY),
+        catchError((err) => {
+          this.errorSubject.next(toMessage(err));
+          return EMPTY;
+        }),
         scan((acc: PricePair, q: Quote) => {
           if (q.vsCurrency !== vsCurrency) return acc;
           let next = acc;

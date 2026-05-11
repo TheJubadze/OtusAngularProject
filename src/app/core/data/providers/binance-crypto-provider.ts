@@ -13,6 +13,7 @@ import {
   of,
   retry,
   throwError,
+  timer,
 } from 'rxjs';
 import { WebSocketSubject, webSocket } from 'rxjs/webSocket';
 
@@ -253,7 +254,7 @@ export class BinanceCryptoProvider implements CryptoDataProvider {
         (msg) => streamSet.has(streamOf(msg)),
       ),
     ).pipe(
-      retry({ delay: 5000 }),
+      retry({ delay: wsRetryDelay }),
       map((msg) => streamToQuote((msg as BinanceStreamMessage).data, quote, vs)),
     );
   }
@@ -278,7 +279,7 @@ export class BinanceCryptoProvider implements CryptoDataProvider {
         (msg) => streamOf(msg) === stream,
       ),
     ).pipe(
-      retry({ delay: 5000 }),
+      retry({ delay: wsRetryDelay }),
       map((msg) =>
         klineEventToCandle((msg as BinanceKlineStreamMessage).data.k),
       ),
@@ -286,8 +287,25 @@ export class BinanceCryptoProvider implements CryptoDataProvider {
   }
 
   getSupportedVsCurrencies(): Observable<readonly string[]> {
-    return of(['usd', 'eur', 'btc']);
+    // Mirrors what `mapVsCurrency` actually accepts — `usdt` maps to itself,
+    // the rest get an equivalent quote symbol.
+    return of(['usd', 'usdt', 'eur', 'btc']);
   }
+}
+
+/**
+ * Reconnect schedule for both `liveQuotes` and `liveCandles`. Returns the
+ * delay until the next attempt. Exponential 2s → 4s → 8s → 16s → 30s,
+ * capped at 30s, with ±15 % jitter so a wave of disconnected clients
+ * doesn't reconnect in lockstep. Retries are unbounded — a permanent
+ * loss of the live stream would otherwise leave the watchlist silently
+ * frozen.
+ */
+function wsRetryDelay(_err: unknown, attempt: number): Observable<number> {
+  const cap = 30_000;
+  const base = Math.min(cap, 1000 * Math.pow(2, Math.min(attempt, 5)));
+  const jitter = base * (Math.random() * 0.3 - 0.15);
+  return timer(Math.max(500, base + jitter));
 }
 
 interface BinanceTicker24hDto {

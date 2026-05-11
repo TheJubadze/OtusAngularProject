@@ -105,6 +105,10 @@ export class WalletState {
         if (!idsKey) return of(empty);
         const ids = idsKey.split(',');
         return this.provider.liveQuotes(ids, vsCurrency).pipe(
+          // Live prices are a decoration here — the source of truth is
+          // json-server. A dead price stream just freezes the value column;
+          // we don't want it to overwrite the wallet's own load/mutation
+          // error channel with provider noise.
           catchError(() => EMPTY),
           scan((acc: ReadonlyMap<string, number>, q: Quote) => {
             if (q.vsCurrency !== vsCurrency) return acc;
